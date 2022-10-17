@@ -1,96 +1,103 @@
-//Trabalho de Gustavo, Italo e Lucas
-
-//Instalação de Esp8266
-//https://www.robocore.net/tutoriais/como-programar-nodemcu-arduino-ide#:~:text=Configurando%20a%20Arduino%20IDE&text=Agora%20clique%20em%20Ferramentas%20%2D%3E%20Placa,placas%20da%20sua%20Arduino%20IDE.
+#define BLYNK_PRINT Serial
 #include <ESP8266WiFi.h>
-#include <WiFiClient.h>
+#include <BlynkSimpleEsp8266.h>
 #include <WiFiClientSecure.h>
-#include <Servo.h>4
-#include <Wire.h>
 
-//Push safer = Notificação via push safer
-// https://androidgeek.pt/enviar-e-receber-notificacoes-push-em-tempo-real-no-android-ou-ios
-#include <Pushsafer.h>
-#include <ArduinoJson.h>
-#define PushsaferKey "HxqogWuaFBM6vx8LfEqW"
-
-/*WiFiClientSecure client;*/
-WiFiClient client;
-Pushsafer pushsafer(PushsaferKey, client);
-
+#include <Servo.h>
 
 //Configuração do servo
 Servo servo;
 int servoPin = 13;
 
-//Configuração do ultrassônico
-int trigPin = 14;    
-int echoPin = 12;   
+//Configuração do ultrassônico abertura tampa
+int trigPin0 = 14;    
+int echoPin0 = 12;   
+
+//Configuração do ultrassônico nivel lixeira
+int trigPin1 = 4;    
+int echoPin1 = 5;   
 
 long duracao, distancia;   
 long distmed[3];   //vetor de distancia media
+long duracao2, distancia2;   
+long distmed2[3];   //vetor de distancia media
 
+BlynkTimer timer; //OBJETO DO TIPO BlynkTimer
+ 
+//CREDENCIAIS DO WIFI E AUTH TOKEN.
+//O AUTH TOKEN É ENVIADO PARA SEU EMAIL QUANDO CRIA O PROJETO NO APP. BASTA COPIAR O TOKEN E COLAR AQUI NO CÓDIGO
+char auth[] = "Your Auth Token";
+char ssid[] = "Redmi Note 7";
+char pass[] = "12345678";
+const char* ssid2 = "Redmi Note 7";
+const char* password2 = "12345678";
 
-// ============= Você precisa preencher com seus dados ===================================
-const char* ssid = "Redmi Note 7";
-const char* password = "12345678";
+WidgetLED green(V1);
+WidgetLED orange(V2);
+WidgetLED red(V3);
 
-//Pushbulet = Notificação via push bullet
-//https://capsistema.com.br/index.php/2020/10/27/notificacao-pushbullet-de-internet-das-coisas-pushingbox-e-arduino/#Implementar_a_notificacao_usando_ESP8266_ou_Arduino
-//https://www.automalabs.com.br/esp8266-como-enviar-notificacoes-usando-o-servico-pushbullet/
-/*const char* PushBulletAPIKEY = "v9663055D5F9F8BA"; //A sua chave de API. Veja na sua conta Pushbullet.
-const String message_title = "Enviado do ESP8266";
-const String message_body = "Funciona!";
-const char* host = "api.pushbullet.com";
-
-// Pushingbox API
-char *api_server = "api.pushingbox.com";
-char *deviceId = "v9663055D5F9F8BA";  //Usar o seu codigo depois.*/
+int distance = 0;
+int thresh [3] = {20,12,4};
 
 void setup() {       
-    Serial.begin(9600);
+    Serial.begin(115200);
+
+    //INICIA A COMUNICAÇÃO COM O BLYNK
+    Blynk.begin(auth, ssid, pass);
+    
     servo.attach(servoPin);  
-    pinMode(trigPin, OUTPUT);  
-    pinMode(echoPin, INPUT);  
+    pinMode(trigPin0, OUTPUT);  
+    pinMode(echoPin0, INPUT);
+    pinMode(trigPin1, OUTPUT);  
+    pinMode(echoPin1, INPUT);    
     servo.write(0); 
     delay(100);
     servo.detach(); 
 
-    //Conexão wifi
-    WiFi.begin(ssid, password);
+    WiFi.begin(ssid2, password2);
     while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
     }
-    Serial.println("\nWiFi conetado.");
+    Serial.println("");
+    Serial.println("WiFi conetado.");
+
 } 
 
 void medicao() {  
-  digitalWrite(trigPin, LOW);
+  digitalWrite(trigPin0, LOW);
   delayMicroseconds(5);
-  digitalWrite(trigPin, HIGH);
+  digitalWrite(trigPin0, HIGH);
   delayMicroseconds(15);
-  digitalWrite(trigPin, LOW);
-  pinMode(echoPin, INPUT);
-  duracao = pulseIn(echoPin, HIGH); // Captura a duração de um pulso
+  digitalWrite(trigPin0, LOW);
+  pinMode(echoPin0, INPUT);
+  duracao = pulseIn(echoPin0, HIGH); // Captura a duração de um pulso
   distancia = (duracao/2) / 29.1;   
   //Você divide por dois porque vai e volta, então o tempo seria o dobro de uma viagem só de ida.
   //O 29,1 é a velocidade do som (que é 343,5 m/s => 1 / 0,03435 = 29,1). Portanto, o resultado está em cm, não em polegadas
 }
 
-//Manda notificação via push bullet
-/*void sendNotification() 
-{
-  struct PushSaferInput input;
-  input.message = "This is a test message";
-  input.title = "Hello!";
-}*/
+void medicao2() {  
+  digitalWrite(trigPin1, LOW);
+  delayMicroseconds(5);
+  digitalWrite(trigPin1, HIGH);
+  delayMicroseconds(15);
+  digitalWrite(trigPin1, LOW);
+  pinMode(echoPin1, INPUT);
+  duracao2 = pulseIn(echoPin1, HIGH); // Captura a duração de um pulso
+  distancia2 = (duracao2/2) / 29.1;   
+  //Você divide por dois porque vai e volta, então o tempo seria o dobro de uma viagem só de ida.
+  //O 29,1 é a velocidade do som (que é 343,5 m/s => 1 / 0,03435 = 29,1). Portanto, o resultado está em cm, não em polegadas
+}
 
 void loop() {
+  Blynk.run();
   //Distancia media
   for (int i=0;i<=2;i++) {   
     medicao();               
-    distmed[i]=distancia;            
+    distmed[i]=distancia; 
+    medicao2();               
+    distmed2[i]=distancia2;              
     delay(10); 
   }
   
@@ -98,9 +105,6 @@ void loop() {
   
   //Abre tampa lixeira
   if ( distancia<30 ) {
-    struct PushSaferInput input;
-    input.message = "This is a test message";
-    input.title = "Hello!";
     
     servo.attach(servoPin); //Anexa o servo a um pino
     delay(1);
@@ -108,8 +112,31 @@ void loop() {
     delay(3000);       
     servo.write(150); //Grava um valor no servo controlando o seu eixo  
     delay(3000);
-    Serial.println(pushsafer.sendEvent(input));
-    Serial.println("Sent");
+
   }
   Serial.print(distancia);
+  
+  if(distancia2<=thresh[0] && distancia2>=thresh[1] && distancia2>=thresh[2]){
+    green.on();
+    //Serial.println(1);  //debugging sake
+    }
+  else if(distancia2<=thresh[0] && distancia2<=thresh[1] && distancia2>=thresh[2]){
+    green.on();
+    orange.on();
+    //Serial.println(2);
+  }
+  else if(distancia2<=thresh[0] && distancia2<=thresh[1] && distancia<=thresh[2]){
+    green.on();
+    orange.on();
+    red.on();
+    //Serial.println(3);
+  }
+  else{
+    green.off();
+    orange.off();
+    red.off();
+    //Serial.println(0);
+  }
+  delay(100);
+ 
 }
