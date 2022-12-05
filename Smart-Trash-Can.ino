@@ -13,6 +13,9 @@
 #define BLYNK_PRINT Serial
 #include <BlynkSimpleEsp8266.h>
 
+//Led
+int led = 0;
+
 //Servo
 #include <Servo.h>
 
@@ -55,6 +58,7 @@ void setup() {
     pinMode(echoPin, INPUT);
     pinMode(trigPin1, OUTPUT);
     pinMode(echoPin1, INPUT);
+    pinMode(led, OUTPUT);
 
     //Inicialização do servo motor
     servo.attach(servoPin);  
@@ -92,16 +96,17 @@ void ultrasonic() {
 
   int blynkDistance = (distance - MaxLevel) * -1;
   delay(2);
-  if (distance <= MaxLevel && blynkDistance <= 26) {
-    Blynk.virtualWrite(V2, blynkDistance);
+  if (distance <= MaxLevel && blynkDistance <= 22) {
+    Blynk.virtualWrite(V2, (blynkDistance));
     Serial.print(blynkDistance);
    }
-  else if(distance <= MaxLevel &&(blynkDistance >= 27)){
-        Blynk.virtualWrite(V2, blynkDistance);
+  else if(distance <= MaxLevel &&(blynkDistance >= 23)){
+        Blynk.virtualWrite(V2, (blynkDistance));
           //Serial.print(blynkDistance);
          notificacao();
          while(1){
-         yield();
+          digitalWrite(led, HIGH);
+          yield();
          }
   }
   else {
